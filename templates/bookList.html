@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    bookList
+{% endblock %}
+
+{% block body %}
+    <div STYLE="text-align:right">
+        <a href="{{ url_for('logout') }}">Log Out</a>
+    </div>
+
+    <h1>Search Results</h1>
+
+<table class="table table-striped" style="width:100%">
+      
+    {% if books%}
+    <tr>
+        <th>Title</th>
+        <th>Author</th>
+        <th>ISBN</th>
+      </tr>
+      {% for book in books %}
+        <tr>
+          <td> 
+          <!-- Make the title a buton and make it look like a link (needs to be a buton because cannot make it method = post with a link -->
+            <form action="{{ url_for('bookPage', isbn=book.isbn, title = book.title, author = book.author) }}" method="post">
+            <div class="form-group">
+                  <button class="btn btn-info" type="submit" style="background:none; color:blue; border:none; padding:0; font:inherit; cursor: pointer; ">{{book.title}}</button>
+            </div>
+          </form>
+          </td>
+          <td>{{ book.author }}</td>
+          <td>{{ book.isbn }}</td>
+        </tr>
+      {% endfor %}
+    {%else%}
+        <h3> No matches found </h3>
+
+      <div STYLE="text-align:right">
+        <a class="btn btn-info" href="{{ url_for('search') }}">Go back</a>
+      </div>
+    {% endif %}
+    </table>
+
+{% endblock %}

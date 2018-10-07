@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    review
+{% endblock %}
+
+{% block body %}
+    <div STYLE="text-align:right">
+        <a href="{{ url_for('logout') }}">Log Out</a>
+    </div>
+<h1>Book info</h1>
+<table  style="width:100%">
+          <tr>
+            <td> Title </td>
+            <td> {{ title }}</td>
+          </tr>
+          <tr>
+            <td> Author </td>
+            <td> {{ author }}</td>
+          </tr>
+</table>
+    <br>
+    <form action="{{ url_for('reviewed', isbn=isbn) }}" method="post">
+    <fieldset>
+      <div class="form-group">
+        <select name="grade">
+          <option value="1">1- sucks</option>
+          <option value="2">2 - medium</option>
+          <option value="3">3 - ok</option>
+          <option value="4">4 - good</option>
+          <option value="5">5 - awesome</option>
+        </select>
+      </div>
+
+        <div class="form-group">
+          <input autocomplete="off" autofocus class="form-control" name="review_text" placeholder="Review text" type="text"/>
+        </div>
+
+        <div class="form-group">
+            <button class="btn btn-info" type="submit"> Submit</button>
+        </div>
+    </form>
+<br>
+<div STYLE="text-align:right">
+  <a class="btn btn-info" href="{{ url_for('search') }}">Go back</a>
+</div>
+{% endblock %}
+

@@ -1,0 +1,72 @@
+{% extends "layout.html" %}
+
+{% block title %}
+    bookPage
+{% endblock %}
+
+{% block body %}
+    <div STYLE="text-align:right">
+        <a href="{{ url_for('logout') }}">Log Out</a>
+    </div>
+<h1>Book info</h1>
+<table  style="width:100%">
+          <tr>
+            <td> Title </td>
+            <td> {{ title }}</td>
+          </tr>
+          <tr>
+            <td> Author </td>
+            <td> {{ author }}</td>
+          </tr>
+          <tr>
+            <td> Year </td>
+            <td> {{ year }}</td>
+          </tr>
+          <tr>
+            <td>ISBN</td>
+            <td>{{ isbn }}</td>
+          </tr>
+</table>
+
+{% if good_avg %}
+This book has been rated {{good_count}} times on Goodreads with an overal average rating of {{ good_avg}}  
+{% else %}
+This book has not been rated on Goodreads
+{% endif %} 
+<br>
+<br>
+<h1>Reviews</h1>
+<table class="table" style="width:100%">
+    {% if reviews%}
+      <tr>
+          <th>Rating</th>
+          <th>Opinion</th>
+      </tr>
+        {% for review in reviews %}
+          <tr>
+            <td>
+              {% if review.grade ==1 %} &#9733;
+              {% elif review.grade ==2 %} &#9733; &#9733;
+              {% elif review.grade ==3 %} &#9733; &#9733; &#9733;
+              {% elif review.grade ==4 %} &#9733; &#9733; &#9733; &#9733;
+              {% elif review.grade ==5 %} &#9733; &#9733; &#9733; &#9733; &#9733;
+              {% endif %}
+            </td>
+            <td>{{ review.review_text }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {%else%}
+     Be the first to leave a review 
+    {% endif %}
+
+    <form action="{{ url_for('review', isbn=isbn) }}" method="post">
+            <div class="form-group">
+                  <button class="btn btn-info" type="submit"> Leave review</button>
+            </div>
+    </form>
+<br>
+<div STYLE="text-align:right">
+  <a class="btn btn-info" href="{{ url_for('search') }}">Go back</a>
+</div>
+{% endblock %}
