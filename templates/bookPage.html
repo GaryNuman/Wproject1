@@ -9,32 +9,61 @@
         <a href="{{ url_for('logout') }}">Log Out</a>
     </div>
 <h1>Book info</h1>
+
 <table  style="width:100%">
           <tr>
             <td> Title </td>
-            <td> {{ title }}</td>
+            <td> {{ book.title }}</td>
           </tr>
           <tr>
             <td> Author </td>
-            <td> {{ author }}</td>
+            <td> {{ book.author }}</td>
           </tr>
           <tr>
             <td> Year </td>
-            <td> {{ year }}</td>
+            <td> {{ book.year }}</td>
           </tr>
           <tr>
             <td>ISBN</td>
-            <td>{{ isbn }}</td>
+            <td>{{ book.isbn }}</td>
           </tr>
 </table>
 
-{% if good_avg %}
-This book has been rated {{good_count}} times on Goodreads with an overal average rating of {{ good_avg}}  
+
+{% if book.good_avg %}
+This book has been rated {{ book.good_count}} times on Goodreads with an overal average rating of {{ book.good_avg}}  
 {% else %}
 This book has not been rated on Goodreads
 {% endif %} 
 <br>
 <br>
+
+
+<!-- <h1>Leave a Review</h1>
+</table>
+    <br>
+    <form action="{{ url_for('reviewed', isbn=isbn) }}" method="post">
+    <fieldset>
+      <div class="form-group">
+        <select name="grade">
+          <option value="1">1- sucks</option>
+          <option value="2">2 - medium</option>
+          <option value="3">3 - ok</option>
+          <option value="4">4 - good</option>
+          <option value="5">5 - awesome</option>
+        </select>
+      </div>
+
+        <div class="form-group">
+          <input autocomplete="off" autofocus class="form-control" name="review_text" placeholder="Review text" type="text"/>
+        </div>
+
+        <div class="form-group">
+            <button class="btn btn-info" type="submit"> Submit</button>
+        </div>
+    </form> -->
+
+
 <h1>Reviews</h1>
 <table class="table" style="width:100%">
     {% if reviews%}
@@ -60,13 +89,17 @@ This book has not been rated on Goodreads
      Be the first to leave a review 
     {% endif %}
 
-    <form action="{{ url_for('review', isbn=isbn) }}" method="post">
+
+
+
+
+    <form action="{{ url_for('review', isbn=book.isbn) }}" method="post">
             <div class="form-group">
                   <button class="btn btn-info" type="submit"> Leave review</button>
             </div>
     </form>
 <br>
 <div STYLE="text-align:right">
-  <a class="btn btn-info" href="{{ url_for('search') }}">Go back</a>
+  <a class="btn btn-info" href="{{ url_for('search') }}">New search</a>
 </div>
 {% endblock %}

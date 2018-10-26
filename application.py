@@ -4,6 +4,9 @@ from flask_session import Session
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 import requests
+from passlib.hash import pbkdf2_sha256
+from functools import wraps
+# make sure the import of passlib and functools is included in hte required document
 
 app = Flask(__name__)
 
@@ -22,6 +25,38 @@ Session(app)
 # Set up database
 engine = create_engine(os.getenv("DATABASE_URL"))
 db = scoped_session(sessionmaker(bind=engine))
+
+class Book:
+	def __init__(self, title, author, isbn, year, book_id, good_avg, good_count):
+
+        # Details about the chosen book.
+		self.title = title
+		self.author = author
+		self.isbn = isbn
+		self.year = year
+		self.book_id = book_id
+		self.good_avg= good_avg
+		self.good_count=good_count
+	def make_dict(self):
+		return {"title": self.title,
+		"author": self.author, 
+		"isbn": self.isbn,
+		"year": self.year,
+		"book_id" : self.book_id,
+		"good_avg": self.good_avg,
+		"good_count": self.good_count
+		}
+	def make_tup(self):
+		return (self.title, self.author, self.isbn, self.year)
+
+#make some pages only accessable when logged in (source: http://flask.pocoo.org/docs/0.12/patterns/viewdecorators/)
+def login_required(f):
+	@wraps(f)
+	def decorated_function(*args, **kwargs):
+		if session.get("user") is None:
+			return render_template("login.html")
+		return f(*args, **kwargs)
+	return decorated_function
 
 @app.route("/")
 def index():
@@ -55,19 +90,19 @@ def register():
 		#check if username already in the database
         username_count = db.execute("SELECT COUNT(*) FROM users WHERE username = :username", {"username": username}).scalar()
                 
+        #give an error if the username is already in use
         if username_count > 0 :
         	return render_template("error.html", message="Username already in use", link=url_for('index'))
         else:
-	        # query to add user to database
+	        #query to add user and hashed password to database (source: https://passlib.readthedocs.io/en/stable/)
+	        hash_password = pbkdf2_sha256.hash(password)
 	        result = db.execute("INSERT INTO users (username, password) VALUES (:username, :password)",
-	        	{"username": username, "password": password})
+	        	{"username": username, "password": hash_password})
 	        db.commit()
-           
-        # remember which user has logged in
-        user_id = db.execute("SELECT id_user FROM users WHERE username= :username", {"username":username}).scalar()
-        session["id_user"] = user_id
+	        # remember which user has logged in
+	        session["user"] = username
 
-        # redirect user to home page
+        # redirect user to search page
         return render_template("search.html", loggedin = username)
 
     # else if user reached route via GET (as by clicking a link or via redirect)
@@ -94,15 +129,18 @@ def login():
         # query database for username
         rows = db.execute("SELECT * FROM users WHERE username = :username", {"username": username}).fetchall()
 
-        # ensure username exists and password is correct
-        if len(rows) != 1 or not password == rows[0]["password"]:
-            return render_template("error.html", message="Invalid username/password", link=url_for('index'))
-
+        # ensure username exists
+        if len(rows) != 1 :
+            return render_template("error.html", message="Wrong username", link=url_for('index'))
+        #verifiy password (source: https://passlib.readthedocs.io/en/stable/)
+        elif not pbkdf2_sha256.verify(password, rows[0]["password"]):
+        	return render_template("error.html", message="Wrong password", link=url_for('index'))
         # remember which user has logged in
-        session["user_id"] = rows[0]["id_user"]
-
-        # redirect user to home page
-        return render_template("search.html", loggedin = username)
+        else:
+        	session["user"] = username
+        
+        # redirect user to search page
+        return redirect("/search")
 
     # else if user reached route via GET (as by clicking a link or via redirect)
     else:
@@ -112,15 +150,16 @@ def login():
 def logout():
     """Log user out."""
 
-    # forget any user_id
+    # forget any user
     session.clear()
 
     # redirect user to login form
     return render_template("index.html")
 
 @app.route("/search", methods=["GET", "POST"])
+@login_required
 def search():
-	"""search for books in the database."""
+	"""search for books in the database. Only access to this page if logged in"""
 
     #if user reached route via POST (as by submitting a form via POST)
 	if request.method == "POST":
@@ -132,6 +171,8 @@ def search():
 			author = request.form.get("author")
 			isbn = request.form.get("isbn")
 			title = request.form.get("title")
+
+			print(session["user"])
 
 			# query database for username
 			#search for when only 1 input is given
@@ -158,8 +199,8 @@ def search():
 			else: 
 				books = db.execute("SELECT * FROM books WHERE lower(author) LIKE lower(concat('%',:author, '%')) AND lower(isbn) LIKE lower(concat('%',:isbn,'%')) AND lower(title) LIKE lower(concat('%',:title,'%'))", 
 				{"author": author, "isbn":isbn, "title": title}).fetchall()
-	
-	        # # redirect user to book list page
+			
+	        # redirect user to book list page
 			return render_template("bookList.html", books = books)
 
 	#else if user reached route via GET (as by clicking a link or via redirect)
@@ -167,27 +208,31 @@ def search():
 		return render_template("search.html")
 
 @app.route("/bookPage/<string:isbn>", methods=["GET", "POST"])
+@login_required
 def bookPage(isbn):
 
 	if request.method == "POST" or "GET":
+		
+		#get book info from database
 		book = db.execute("SELECT * FROM books WHERE isbn= :isbn", {"isbn":isbn}).fetchall()
-		book_id = book[0]["id_book"]
-		title = book [0]["title"] 
-		author = book[0]["author"]
-		year = book[0]["year"] 
-
-		#get the book info from good reads api 
+		#get book info from goodread api 
 		res = requests.get("https://www.goodreads.com/book/review_counts.json", params={"key": "FG8F3FZTtXKHQkRkxyw", "isbns": isbn})
 
+		#give error if api request unsuccessful
 		if res.status_code != 200:
 			raise Exception("REQUEST ERROR: Goodreads API request unsuccessful.")
-
+		#make goodreads info a JSON object
 		good_books= res.json()["books"][0]
-		good_avg = good_books["average_rating"]
-		good_count = good_books["ratings_count"]
-		reviews = db.execute("SELECT * FROM review WHERE id_book = :book_id", {"book_id":book_id}).fetchall()
+		
+
+		#create a book
+		book = Book(title=book [0]["title"] , author = book[0]["author"], year = book[0]["year"] , isbn = isbn, book_id= book[0]["id_book"], 
+		good_avg= good_books["average_rating"], good_count= good_books["ratings_count"])
+		book = book.make_dict()
+
+		reviews = db.execute("SELECT * FROM review WHERE id_book = :book_id", {"book_id":book["book_id"]}).fetchall()
 	
-		return render_template("bookPage.html", title=title, isbn=isbn, author = author, year=year, reviews = reviews, good_avg = good_avg, good_count = good_count)
+		return render_template("bookPage.html", book = book, reviews =reviews)
 	
 	# else if user reached route via GET
 	else:
@@ -195,6 +240,7 @@ def bookPage(isbn):
 
 
 @app.route("/review/<string:isbn>", methods=["POST", "GET"])
+@login_required
 def review(isbn):
 
 	if request.method == "POST":
@@ -211,6 +257,7 @@ def review(isbn):
 
 
 @app.route("/reviewed/<string:isbn>", methods=["POST", "GET"])
+@login_required
 def reviewed(isbn):
 
 	grade = request.form.get("grade")
@@ -223,15 +270,16 @@ def reviewed(isbn):
 	print(grade)
 	print(str(review_text))
 
-	already = db.execute("SELECT * FROM review WHERE id_writer = :id_writer AND id_book = :id_book", {"id_writer": session["user_id"], "id_book": id_book}).fetchall()
+	already = db.execute("SELECT * FROM review WHERE rev_writer = :rev_writer AND id_book = :id_book", {"rev_writer": session["user"], "id_book": id_book}).fetchall()
 
 	print(already)
 	#add review to database
 	if already == []:
-		db.execute("INSERT INTO review (grade, review_text, id_writer, id_book) VALUES ({}, '{}' , {}, {})".format(int(grade), review_text, 7, id_book))
+		db.execute("INSERT INTO review (grade, review_text, rev_writer, id_book) VALUES ({}, '{}' , '{}' , {})".format(int(grade), review_text, session["user"], id_book))
 		db.commit()
 
-		return render_template( 'search.html')
+		reviews = db.execute("SELECT * FROM review WHERE id_book = :book_id", {"book_id":id_book}).fetchall()
+		return bookPage(isbn)
 
 	else:
 		return render_template("error.html", message="Only 1 review per person", link=url_for('search'))

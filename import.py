@@ -15,6 +15,10 @@ def main():
     # Open the csv document and read through it using csv.reader (build in in Python)
     f = open("books.csv")
     reader = csv.reader(f)
+
+        # do not import th efirst row 
+        next(csv_reader)
+
     # loop through the document naming the columns
     for isbn, title, author, year in reader:
         db.execute("INSERT INTO books (isbn, title, author, year) VALUES (:isbn, :title, :author, :year)",
